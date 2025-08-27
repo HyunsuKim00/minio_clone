@@ -1,5 +1,10 @@
 import type AWS from 'aws-sdk';
 
+/**
+ * 버킷 관리 관련 함수들
+ * - 버킷 생성, 삭제, 목록 조회
+ */
+
 // 버킷 목록 조회
 export async function listBuckets(s3Client: AWS.S3) {
   try {

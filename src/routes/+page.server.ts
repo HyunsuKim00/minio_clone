@@ -11,7 +11,5 @@ export const load = async ({ parent }: { parent: () => Promise<any> }) => {
     }
     
     // 버킷이 없으면 기본 데이터 반환
-    return {
-        redirected: false
-    };
+    throw redirect(307, `/browser`);
 };

@@ -1,12 +1,21 @@
-import { createDefaultS3Client, listBuckets, listObjects } from '$lib/s3_sdk';
+import { listBuckets, listObjects } from '$lib/s3_sdk';
 import type { ObjectInfo } from '$lib/s3_sdk/types';
+import { initializeS3Client } from '$lib/stores/s3ClientStore';
 
 export const load = async () => {
     try {
-        const s3Client = createDefaultS3Client();
+        // S3 클라이언트 초기화 (앱 전체에서 재사용 가능)
+        const s3Client = initializeS3Client();
         
         // 버킷 목록 가져오기
-        const bucketsList = await listBuckets(s3Client);
+        const bucketsListRaw = await listBuckets(s3Client);
+        
+        // 버킷을 생성일자 순으로 정렬 (최신이 첫 번째)
+        const bucketsList = bucketsListRaw.sort((a, b) => {
+            const dateA = new Date(a.CreationDate || 0);
+            const dateB = new Date(b.CreationDate || 0);
+            return dateB.getTime() - dateA.getTime(); // 내림차순 정렬
+        });
         
         // 객체 목록 초기화
         let objectsList: ObjectInfo[] = [];

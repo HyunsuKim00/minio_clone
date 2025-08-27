@@ -1,10 +1,18 @@
 import AWS from 'aws-sdk';
-import type { S3ClientConfig } from '$lib/s3_sdk/types';
-import {getConfig} from '$lib/s3_sdk/config';
+import type { S3ClientConfig } from './types';
+import 'dotenv/config';
 
-// 사용자 설정으로 S3 클라이언트 생성
+// 환경 변수에서 직접 설정 가져오기
 export function createDefaultS3Client(): AWS.S3 {
-    return createS3Client(getConfig());
+    const config: S3ClientConfig = {
+        endpoint: process.env.S3_ENDPOINT || 'http://172.30.1.34:9000',
+        accessKey: process.env.S3_ACCESS_KEY || 'myadmin',
+        secretKey: process.env.S3_SECRET_KEY || 'mypassword123',
+        region: process.env.S3_REGION || 'us-east-1',
+        forcePathStyle: true
+    };
+    
+    return createS3Client(config);
 }
 
 // S3 클라이언트 생성 함수
