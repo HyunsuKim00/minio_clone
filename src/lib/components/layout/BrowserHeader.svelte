@@ -1,10 +1,7 @@
 <script lang="ts">
-  // 버킷 목록 페이지에서 사용하는 헤더
-  // 필터 값은 fileFilterStore에 저장되어 다른 컴포넌트에서 사용됨
-  import { fileFilterStore } from '$lib/stores/filterStore';
+  import { writable } from 'svelte/store';
   
-  let { onFilterChange = (filter: string) => {} } = $props();
-  
+  let { onFilterChange = () => {} } = $props();
   let filterValue = $state('');
   
   // 필터 값이 변경되면 스토어에 직접 저장하고 콜백도 호출
@@ -12,10 +9,9 @@
     const target = e.target as HTMLInputElement;
     filterValue = target.value;
     
-    // 스토어에 직접 저장 (이렇게 하면 다른 컴포넌트에서 바로 사용 가능)
+    const fileFilterStore = writable('');
     fileFilterStore.set(filterValue);
     
-    // 기존 콜백도 유지 (하위 호환성)
     onFilterChange(filterValue);
   }
 </script>

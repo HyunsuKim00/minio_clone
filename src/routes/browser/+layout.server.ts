@@ -1,14 +1,13 @@
-import { listBuckets } from '$lib/s3_sdk';
-import { getS3Client } from '$lib/stores/s3ClientStore';
+import { createS3Client } from '$lib/server/s3_client';
 
 export const load = async () => {
   try {
     // 기존 S3 클라이언트 재사용
-    const s3Client = getS3Client();
-    const bucketsListRaw = await listBuckets(s3Client);
+    const s3Client = createS3Client();
+    const bucketsListRaw = await s3Client.listBuckets().promise();
     
     // 버킷을 생성일자 순으로 정렬 (최신이 첫 번째)
-    const bucketsList = bucketsListRaw.sort((a, b) => {
+    const bucketsList = bucketsListRaw.Buckets?.sort((a, b) => {
       const dateA = new Date(a.CreationDate || 0);
       const dateB = new Date(b.CreationDate || 0);
       return dateB.getTime() - dateA.getTime(); // 내림차순 정렬

@@ -1,6 +1,6 @@
 <!-- 오브젝트 목록 컴포넌트 -->
 <script lang="ts">
-  import type { ObjectInfo } from '$lib/s3_sdk/types';
+  import type { ObjectInfo } from '$lib/server/index';
   import { formatBytes } from '$lib/utils/formatters';
   import ObjectActions from './ObjectActions.svelte';
   

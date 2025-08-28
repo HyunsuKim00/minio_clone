@@ -1,5 +1,4 @@
-import { createBucket } from '$lib/s3_sdk';
-import { getS3Client } from '$lib/stores/s3ClientStore';
+import { createS3Client } from '$lib/server/s3_client';
 import { fail, redirect } from '@sveltejs/kit';
 import type { Actions } from './$types';
 
@@ -44,11 +43,11 @@ export const actions: Actions = {
     
     try {
       // S3 클라이언트 가져오기
-      const s3Client = getS3Client();
+      const s3Client = createS3Client();
       
       // 버킷 생성
-      await createBucket(s3Client, bucketName);
-      
+      await s3Client.createBucket({Bucket: bucketName}).promise();
+
       console.log(`버킷 '${bucketName}' 생성 완료`);
       
       // 루트 페이지로 리디렉션 (자동으로 첫 번째 버킷으로 이동)

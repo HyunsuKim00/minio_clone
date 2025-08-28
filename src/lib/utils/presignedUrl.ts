@@ -20,7 +20,8 @@ export interface PresignedUrlResponse {
 }
 
 /**
- * 서버에서 pre-signed URL을 요청하는 공통 함수
+ * 클라이언트가 서버에게 pre-signed URL을 요청하는 함수
+ * 파일 업로드, 파일 다운로드 모두 사용하기 때문에 함수로 분리함.
  */
 export async function getPresignedUrl(options: PresignedUrlOptions): Promise<string> {
   const {
@@ -64,38 +65,4 @@ export async function getPresignedUrl(options: PresignedUrlOptions): Promise<str
     console.error(`Pre-signed URL 요청 중 오류 (${operation}):`, error);
     throw error;
   }
-}
-
-/**
- * 파일 업로드용 pre-signed URL 요청
- */
-export async function getUploadUrl(
-  bucketName: string,
-  key: string,
-  contentType: string,
-  expiresIn = 300
-): Promise<string> {
-  return getPresignedUrl({
-    operation: 'upload',
-    bucketName,
-    key,
-    contentType,
-    expiresIn
-  });
-}
-
-/**
- * 파일 다운로드용 pre-signed URL 요청
- */
-export async function getDownloadUrl(
-  bucketName: string,
-  key: string,
-  expiresIn = 300
-): Promise<string> {
-  return getPresignedUrl({
-    operation: 'download',
-    bucketName,
-    key,
-    expiresIn
-  });
 }

@@ -1,11 +1,11 @@
 <script lang="ts">
-    import { fileFilterStore } from '$lib/stores/filterStore';
     import ObjectList from '$lib/components/objects/ObjectList.svelte';
-    import type { ObjectInfo } from '$lib/s3_sdk/types';
-    
+    import type { ObjectInfo } from '$lib/server/index';
+    import { writable } from 'svelte/store';
+
     let { data } = $props<{ data: any }>();
-    
-    // BrowserHeader에서 업데이트된 스토어 값을 구독하여 필터링에 사용
+
+    const fileFilterStore = writable('');
     let fileFilter = $state('');
     fileFilterStore.subscribe(value => {
         fileFilter = value;

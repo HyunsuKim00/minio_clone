@@ -1,7 +1,6 @@
 import { json, error } from '@sveltejs/kit';
 import type { RequestEvent } from '@sveltejs/kit';
-import { getPresignedUploadUrl, getPresignedDownloadUrl } from '$lib/s3_sdk/operations/objects/presigned';
-import { getS3Client } from '$lib/stores/s3ClientStore';
+import { createS3Client } from '$lib/server/s3_client'
 
 // pre-signed URL 생성 API
 export async function POST({ request }: RequestEvent) {
@@ -13,20 +12,31 @@ export async function POST({ request }: RequestEvent) {
       throw error(400, '필수 파라미터가 누락되었습니다: operation, bucketName, key');
     }
     
-    const s3Client = getS3Client();
-    let url = '';
-    
-    // 요청된 작업에 따라 pre-signed URL 생성
-    if (operation === 'upload') {
-      if (!contentType) {
-        throw error(400, '업로드에는 contentType이 필요합니다');
-      }
-      url = await getPresignedUploadUrl(s3Client, bucketName, key, contentType, expiresIn);
-    } else if (operation === 'download') {
-      url = await getPresignedDownloadUrl(s3Client, bucketName, key, expiresIn);
-    } else {
+    // 요청된 작업 검증
+    if (operation !== 'upload' && operation !== 'download') {
       throw error(400, '지원되지 않는 작업입니다. upload 또는 download만 가능합니다');
     }
+    
+    // 업로드 작업은 contentType 필요
+    if (operation === 'upload' && !contentType) {
+      throw error(400, '업로드에는 contentType이 필요합니다');
+    }
+    
+    const s3Client = createS3Client();
+    
+    // S3 파라미터 설정
+    const params = {
+      Bucket: bucketName,
+      Key: key,
+      Expires: expiresIn,
+      ...(operation === 'upload' ? { ContentType: contentType } : {})
+    };
+    
+    // S3 SDK를 사용하여 직접 presigned URL 생성
+    const url = await s3Client.getSignedUrlPromise(
+      operation === 'upload' ? 'putObject' : 'getObject', 
+      params
+    );
     
     return json({
       success: true,

@@ -1,8 +1,8 @@
 <!-- 오브젝트 액션 버튼 컴포넌트 -->
 <script lang="ts">
-  import type { ObjectInfo } from '$lib/s3_sdk/types';
-  import { getDownloadUrl } from '$lib/utils/presignedUrl';
-  
+  import type { ObjectInfo } from '$lib/server/index';
+  import { getPresignedUrl } from '$lib/utils/presignedUrl';
+
   export let object: ObjectInfo;
   export let bucketName: string;
   
@@ -20,9 +20,15 @@
     try {
       downloading = true;
       error = '';
-      
-      // 1. 서버에게 pre-signed URL 요청 (공통 유틸리티 사용)
-      const url = await getDownloadUrl(bucketName, object.key, 300);
+
+      // 1. 서버에게 pre-signed URL 요청
+      const url = await getPresignedUrl(
+        {
+          operation: 'download',
+          bucketName,
+          key: object.key,
+          expiresIn: 300}
+        );
       
       // 2. fetch를 사용해 파일을 받아온 후 blob으로 다운로드 (favicon 에러 방지)
       const response = await fetch(url);
@@ -57,14 +63,38 @@
     }
   }
   
-  // 파일 삭제 기능 (추후 구현)
-  function deleteObject(event: Event) {
+  // 파일 삭제 기능 - SvelteKit 서버 액션 사용
+  async function deleteObject(event: Event) {
     // 이벤트 전파 방지 (테이블 행 클릭 이벤트와 충돌 방지)
     event.preventDefault();
     event.stopPropagation();
     
-    // 삭제 기능 구현 예정
-    console.log('삭제 버튼 클릭:', object.key);
+    try {
+      error = '';
+      
+      // FormData 생성 및 객체 키 추가
+      const formData = new FormData();
+      formData.append('key', object.key);
+      
+      // SvelteKit의 서버 액션 호출 (현재 URL + ?/deleteObject)
+      const response = await fetch(`?/deleteObject`, {
+        method: 'POST',
+        body: formData
+      });
+      
+      const result = await response.json();
+      
+      if (!result.success && result.error) {
+        throw new Error(result.message || '객체 삭제 실패');
+      }
+      
+      console.log(`객체 ${object.key} 삭제 완료`);
+      // 삭제 후 페이지 새로고침
+      window.location.reload();
+    } catch (err) {
+      console.error('객체 삭제 중 오류:', err);
+      error = err instanceof Error ? err.message : '객체 삭제 중 오류가 발생했습니다.';
+    }
   }
 </script>
 

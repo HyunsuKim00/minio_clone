@@ -1,7 +1,7 @@
-import { listObjects } from '$lib/s3_sdk';
+import { listObjects } from '$lib/server';
 import { error } from '@sveltejs/kit';
 import type { LayoutServerLoad } from './$types';
-import { getS3Client } from '$lib/stores/s3ClientStore';
+import { createS3Client } from '$lib/server/s3_client';
 
 export const load: LayoutServerLoad = async ({ params, parent }) => {
   const { bucketName } = params;
@@ -15,7 +15,7 @@ export const load: LayoutServerLoad = async ({ params, parent }) => {
   
   try {
     // 기존 S3 클라이언트 재사용
-    const s3Client = getS3Client();
+    const s3Client = createS3Client();
     const objects = await listObjects(s3Client, bucketName);
     
     // 객체 정렬: 폴더 먼저, 그 다음 파일을 이름순으로
