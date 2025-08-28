@@ -14,9 +14,19 @@
   
   // 모달 상태 관리
   let showModal = false;
+  let showDeleteModal = false;
   let newBucketName = '';
+  let currentBucketName = '';
   let isSubmitting = false;
   let errorMessage = '';
+  
+  // 버킷 삭제 모달 열기
+  function openDeleteModal(bucketName: string) {
+    currentBucketName = bucketName;
+    showDeleteModal = true;
+    errorMessage = '';
+    isSubmitting = false;
+  }
   
   // 모달 열기/닫기
   function openModal() {
@@ -30,7 +40,9 @@
   
   function closeModal() {
     showModal = false;
+    showDeleteModal = false;
     newBucketName = '';
+    currentBucketName = '';
     errorMessage = '';
     isSubmitting = false;
   }
@@ -55,7 +67,7 @@
   
   // ESC 키로 모달 닫기
   function handleKeydown(event: KeyboardEvent) {
-    if (event.key === 'Escape' && showModal) {
+    if (event.key === 'Escape' && (showModal || showDeleteModal)) {
       closeModal();
     }
   }
@@ -119,18 +131,32 @@
           <ul class="space-y-1">
             {#each filteredBuckets as bucket}
               <li>
-                <a 
-                  href="/browser/{bucket.Name}" 
-                  class="flex items-center px-3 py-2 text-sm rounded-md transition-colors"
-                  class:bg-primary-100={bucket.Name === activeBucket}
-                  class:text-primary-800={bucket.Name === activeBucket}
-                  class:hover:bg-gray-200={bucket.Name !== activeBucket}
-                >
-                  <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
-                  </svg>
-                  <span class="truncate">{bucket.Name}</span>
-                </a>
+                <div class="flex items-center justify-between">
+                  <a 
+                    href="/browser/{bucket.Name}" 
+                    class="flex items-center flex-grow px-3 py-2 text-sm rounded-md transition-colors"
+                    class:bg-primary-100={bucket.Name === activeBucket}
+                    class:text-primary-800={bucket.Name === activeBucket}
+                    class:hover:bg-gray-200={bucket.Name !== activeBucket}
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mr-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 8h14M5 8a2 2 0 110-4h14a2 2 0 110 4M5 8v10a2 2 0 002 2h10a2 2 0 002-2V8m-9 4h4" />
+                    </svg>
+                    <span class="truncate">{bucket.Name}</span>
+                  </a>
+                  
+                  <!-- 삭제 버튼 -->
+                  <button
+                    on:click|stopPropagation={() => openDeleteModal(bucket.Name)}
+                    class="p-1 rounded-md hover:bg-gray-200 text-red-500 transition-colors"
+                    aria-label="버킷 삭제"
+                    title="버킷 삭제"
+                  >
+                    <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
               </li>
             {/each}
           </ul>
@@ -334,6 +360,102 @@
           </button>
         </div>
       </form>
+    </div>
+  </div>
+{/if}
+
+<!-- 버킷 삭제 모달 -->
+{#if showDeleteModal}
+  <!-- svelte-ignore a11y-click-events-have-key-events -->
+  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <div 
+    class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
+    on:click={handleModalClick}
+  >
+    <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
+      <!-- 모달 헤더 -->
+      <div class="flex items-center justify-between mb-4">
+        <h3 class="text-lg font-semibold text-gray-900">버킷 삭제</h3>
+        <button 
+          on:click={closeModal}
+          class="text-gray-400 hover:text-gray-600 transition-colors"
+          aria-label="모달 닫기"
+        >
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+          </svg>
+        </button>
+      </div>
+      
+      <!-- 모달 내용 -->
+      <div class="space-y-4">
+        <div class="text-center p-2">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-12 w-12 mx-auto text-red-500" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+          </svg>
+          <h4 class="text-lg font-medium text-gray-900 mt-2">정말 삭제하시겠습니까?</h4>
+          <p class="text-sm text-gray-600 mt-1">
+            버킷 "{currentBucketName}"을(를) 삭제하면 모든 파일이 영구적으로 삭제됩니다.
+            이 작업은 되돌릴 수 없습니다.
+          </p>
+        </div>
+        
+        <!-- 에러 메시지 -->
+        {#if errorMessage}
+          <div class="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm">
+            {errorMessage}
+          </div>
+        {/if}
+        
+        <!-- 모달 폼 -->
+        <form 
+          method="POST" 
+          action="/browser?/deleteBucket" 
+          use:enhance={({ formData }) => {
+            isSubmitting = true;
+            errorMessage = '';
+            
+            formData.append('bucketName', currentBucketName);
+            
+            return async ({ result }) => {
+              isSubmitting = false;
+              
+              if (result.type === 'failure') {
+                errorMessage = (result.data as any)?.message || '버킷 삭제 중 오류가 발생했습니다.';
+              } else if (result.type === 'redirect') {
+                await invalidateAll();
+                closeModal();
+              }
+            };
+          }}
+          class="flex gap-3 pt-2"
+        >
+          <button 
+            type="submit"
+            disabled={isSubmitting}
+            class="w-full px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-md hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            {#if isSubmitting}
+              <svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                <circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle>
+                <path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+              </svg>
+              삭제 중...
+            {:else}
+              삭제하기
+            {/if}
+          </button>
+
+          <button 
+            type="button" 
+            on:click={closeModal}
+            disabled={isSubmitting}
+            class="w-full px-4 py-2 bg-gray-200 text-gray-800 text-sm font-medium rounded-md hover:bg-gray-300 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          >
+            취소
+          </button>
+        </form>
+      </div>
     </div>
   </div>
 {/if}

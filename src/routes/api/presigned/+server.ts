@@ -46,6 +46,7 @@ export async function POST({ request }: RequestEvent) {
       key,
       expiresIn
     });
+    
   } catch (err: unknown) {
     console.error('Pre-signed URL 생성 중 오류:', err);
     

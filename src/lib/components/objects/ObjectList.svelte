@@ -22,16 +22,35 @@
     
     return '📄 파일';
   }
+
+  let selectedObjects = [];  // 선택된 object.key 저장
+  let allSelected = false;
+
+  function toggleSelectAll() {
+    if (allSelected) {
+      selectedObjects = objects.map(o => o.key);
+    } else {
+      selectedObjects = [];
+    }
+  }
 </script>
 
 {#if objects.length > 0}
   <table class="w-full border-collapse">
     <thead class="sticky top-0">
       <tr class="grid grid-cols-12 w-full">
-        <th class="col-span-5 p-3 bg-gray-50 font-bold text-left border-b border-gray-200">이름</th>
+        <!-- 체크박스 전체 선택 -->
+        <th class="col-span-1 p-3 bg-gray-50 font-bold text-center border-b border-gray-200">
+          <input 
+            type="checkbox" 
+            bind:checked={allSelected} 
+            on:change={() => toggleSelectAll()} 
+          />
+        </th>
+        <th class="col-span-4 p-3 bg-gray-50 font-bold text-left border-b border-gray-200">이름</th>
         <th class="col-span-3 p-3 bg-gray-50 font-bold text-left border-b border-gray-200">마지막 수정</th>
         <th class="col-span-2 p-3 bg-gray-50 font-bold text-left border-b border-gray-200">크기</th>
-        <th class="col-span-2 p-3 bg-gray-50 font-bold text-left border-b border-gray-200">작업</th>
+        <th class="col-span-2 p-3 bg-gray-50 font-bold text-center border-b border-gray-200">작업</th>
       </tr>
     </thead>
     <tbody>
@@ -40,7 +59,16 @@
           class="grid grid-cols-12 w-full hover:bg-gray-50 cursor-pointer" 
           on:click={() => onSelectObject(object)}
         >
-          <td class="col-span-5 p-3 border-b border-gray-200">
+          <!-- 각 row 체크박스 -->
+          <td class="col-span-1 p-3 border-b border-gray-200 text-center">
+            <input 
+              type="checkbox" 
+              bind:group={selectedObjects} 
+              value={object.key} 
+              on:click|stopPropagation
+            />
+          </td>
+          <td class="col-span-4 p-3 border-b border-gray-200">
             <div class="flex items-center">
               <span class="mr-2 flex-shrink-0">{getFileType(object.key)}</span>
               <span class="truncate">{object.key}</span>
@@ -51,10 +79,19 @@
               {new Date(object.lastModified).toLocaleString()}
             {/if}
           </td>
-          <td class="col-span-2 p-3 border-b border-gray-200 text-left">{formatBytes(object.size)}</td>
+          <td class="col-span-2 p-3 border-b border-gray-200 text-left">
+            {formatBytes(object.size)}
+          </td>
           <td class="col-span-2 p-3 border-b border-gray-200 text-center">
-            <!-- 이벤트 버블링 방지 -->
-            <div on:click|stopPropagation role="button" tabindex="0" on:keydown={(e) => e.key === 'Enter' && e.stopPropagation()}>
+            <div 
+              on:click|stopPropagation 
+              on:keydown|stopPropagation={(e) => {
+                if (e.key === 'Enter' && e.currentTarget) {
+                  e.currentTarget.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+                }
+              }}
+              role="button"
+              tabindex="0">
               <ObjectActions {object} {bucketName} />
             </div>
           </td>
@@ -63,5 +100,7 @@
     </tbody>
   </table>
 {:else}
-  <div class="p-5 bg-gray-50 rounded text-gray-600 text-center">이 버킷에 객체가 없습니다.</div>
+  <div class="p-5 bg-gray-50 rounded text-gray-600 text-center">
+    이 버킷에 객체가 없습니다.
+  </div>
 {/if}

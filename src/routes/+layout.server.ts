@@ -38,6 +38,7 @@ export const load = async () => {
             objects: objectsList,
             connected: true
         };
+        
     } catch (error) {
         console.error('MinIO 연결 오류:', error);
         return {

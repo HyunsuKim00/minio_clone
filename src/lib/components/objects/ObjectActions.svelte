@@ -98,7 +98,7 @@
   }
 </script>
 
-<div class="flex space-x-2">
+<div class="flex space-x-2 justify-center">
   <!-- 다운로드 버튼 -->
   <button 
     on:click={downloadObject} 
