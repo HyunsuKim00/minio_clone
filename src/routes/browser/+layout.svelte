@@ -1,6 +1,6 @@
 <script lang="ts">
-  import Sidebar from '$lib/components/layout/Sidebar.svelte';
-  import BrowserHeader from '$lib/components/layout/BrowserHeader.svelte';
+  import Sidebar from '$lib/components/browser/leftSidebar.svelte';
+  import BrowserHeader from '$lib/components/browser/BrowserHeader.svelte';
   
   let { data, children } = $props();
   let sidebarOpen = $state(true);
@@ -20,7 +20,7 @@
     <BrowserHeader />
     
     <!-- 메인 콘텐츠 -->
-    <main class="flex-[0.95] overflow-auto p-4">
+    <main class="flex-[0.95] overflow-auto px-6 py-10">
       {@render children()}
     </main>
   </div>

@@ -9,7 +9,7 @@ export function createS3Client(): AWS.S3 {
             timeout: 5000 // 타임아웃 설정 (5초)
         }
     });
-    
+
     return new AWS.S3({
         endpoint: VITE_S3_ENDPOINT,
         accessKeyId: VITE_S3_ACCESS_KEY,

@@ -2,7 +2,6 @@
  * 바이트 크기를 읽기 쉬운 형식으로 변환
  */
 // 버켓 헤더와 오브젝트 리스트에서 모두 사용하여 함수로 분리
-
 export function formatBytes(bytes: number): string {
   if (bytes === 0) return '0 Bytes';
   

@@ -1,103 +1,88 @@
-# MinIO 브라우저 클론
-
-SvelteKit과 TailwindCSS를 사용하여 구현한 MinIO 웹 브라우저입니다. 이 애플리케이션은 MinIO 서버와 연동하여 S3 호환 스토리지를 관리합니다.
-
-## 기능
-
-- 버킷 목록 조회 및 생성
-- 버킷 내 오브젝트 목록 조회
-- 파일 업로드 및 다운로드
-- 오브젝트 관리 (삭제, 공유, 태그 등)
-
-## 프로젝트 구조
-
-```
-src/
-  - app.css                    # TailwindCSS 스타일
-  - app.d.ts                   # TypeScript 타입 정의
-  - app.html                   # HTML 템플릿
-  - lib/
-    - index.ts                 # 라이브러리 내보내기
-    - components/
-      - layout/
-        - Sidebar.svelte       # 좌측 사이드바 컴포넌트
-        - ObjectSidebar.svelte # 우측 오브젝트 사이드바 컴포넌트
-        - Header.svelte        # 헤더 컴포넌트
-        - Footer.svelte        # 푸터 컴포넌트
-      - buckets/
-        - BucketList.svelte    # 버킷 목록 컴포넌트
-        - BucketFilter.svelte  # 버킷 필터 컴포넌트
-        - CreateBucket.svelte  # 버킷 생성 폼 컴포넌트
-      - objects/
-        - ObjectList.svelte    # 오브젝트 목록 컴포넌트
-        - ObjectFilter.svelte  # 오브젝트 필터 컴포넌트
-        - ObjectActions.svelte # 오브젝트 액션 버튼 컴포넌트
-        - FileUploader.svelte  # 파일 업로드 컴포넌트
-      - ui/
-        - Button.svelte        # 버튼 컴포넌트
-        - Modal.svelte         # 모달 컴포넌트
-        - Spinner.svelte       # 로딩 스피너 컴포넌트
-        - Alert.svelte         # 알림 컴포넌트
-    - s3_sdk/
-      - client.ts              # S3 클라이언트 생성
-      - index.ts               # SDK 내보내기
-      - types.ts               # 타입 정의
-      - operations/
-        - buckets.ts           # 버킷 관련 작업
-        - objects.ts           # 오브젝트 관련 작업
-        - presigned.ts         # pre-signed URL 관련 기능
-    - utils/
-      - formatters.ts          # 날짜, 파일크기 등 포맷팅 유틸리티
-      - validators.ts          # 입력 검증 유틸리티
-  - routes/
-    - +layout.server.ts        # 전역 레이아웃 서버 로드 함수
-    - +layout.svelte           # 전역 레이아웃 컴포넌트
-    - +page.server.ts          # 메인 페이지 서버 로드 함수
-    - +page.svelte             # 메인 페이지 컴포넌트
-    - browser/
-      - +layout.svelte         # 브라우저 공통 레이아웃
-      - +layout.server.ts      # 브라우저 레이아웃 서버 로드 함수
-      - [bucketName]/
-        - +page.server.ts      # 버킷 페이지 서버 로드 함수
-        - +page.svelte         # 버킷 페이지 컴포넌트
-    - api/
-      - presigned/
-        - +server.ts           # pre-signed URL 생성 API
-```
-
-## 개발 환경 설정
-
-1. 의존성 설치
-
-```sh
-npm install
-```
-
-2. 개발 서버 실행
-
-```sh
-npm run dev
-```
-
-3. 브라우저에서 확인
-
-```
-http://localhost:5173
-```
-
-## 환경 변수 설정
-
-`.env` 파일을 프로젝트 루트에 생성하고 다음 변수를 설정합니다:
-
-```
-S3_ENDPOINT=http://your-minio-server:9000
-S3_ACCESS_KEY=your-access-key
-S3_SECRET_KEY=your-secret-key
-S3_REGION=us-east-1
-```
-
-## 기술 스택
-
-- SvelteKit - 프론트엔드 프레임워크
-- TailwindCSS - 스타일링
-- AWS SDK - S3 API 호출
+🎯 현재 시스템의 문제점
+1. 비효율적인 다운로드
+파일 5개를 선택하면 → presigned URL 5번 생성 → 개별 다운로드 5번
+사용자는 5개의 파일을 각각 저장해야 함
+네트워크 요청이 너무 많음
+2. 폴더 구조 부재
+모든 파일이 평면적으로 나열됨
+S3의 folder1/subfolder/file.txt 같은 구조를 제대로 활용하지 못함
+폴더 단위 작업 불가능
+🔄 개선된 시스템 동작 방식
+1단계: 복수 파일 다운로드 개선
+현재 방식:
+사용자가 파일 5개 선택
+브라우저가 presigned URL API를 5번 호출
+각 파일을 개별적으로 다운로드
+사용자는 5개 파일을 각각 저장
+개선된 방식:
+사용자가 파일 5개 선택
+브라우저가 "다운로드 API"에 선택된 파일 목록 전송 (1번 호출)
+서버에서 S3로부터 5개 파일을 가져와서 ZIP으로 압축
+사용자는 1개의 ZIP 파일만 다운로드
+장점:
+네트워크 요청: 10번 → 1번
+사용자 경험: 5번 저장 → 1번 저장
+파일 관리: 개별 파일들 → 하나의 압축파일
+2단계: 폴더 구조 표시 개선
+현재:
+folder1/file1.txt, folder1/file2.txt, folder2/file3.txt가 모두 평면적으로 나열
+개선 후:
+📁 folder1/ (2개 파일)
+📁 folder2/ (1개 파일)
+📄 root-file.txt
+동작 방식:
+S3 listObjectsV2에 Delimiter: '/' 추가
+응답에서 CommonPrefixes는 폴더로, Contents는 파일로 분류
+폴더 클릭 시 해당 prefix로 필터링하여 하위 내용 표시
+3단계: 폴더 기능 구현
+A. 폴더 생성
+사용자가 "폴더 생성" 버튼 클릭
+폴더명 입력 (예: "새폴더")
+서버에서 새폴더/.placeholder 빈 파일 생성
+목록 새로고침하여 폴더 표시
+B. 폴더 업로드
+사용자가 "폴더 업로드" 버튼 클릭
+브라우저의 폴더 선택 다이얼로그 열림 (webkitdirectory 속성)
+선택된 모든 파일의 상대 경로 유지하여 개별 업로드
+예: 내폴더/파일1.txt, 내폴더/서브폴더/파일2.txt 구조 그대로 S3에 저장
+C. 폴더 다운로드
+사용자가 폴더 클릭 후 다운로드
+서버에서 해당 prefix의 모든 파일 조회
+모든 파일을 ZIP으로 압축 (폴더 구조 유지)
+사용자는 폴더명.zip 다운로드
+4단계: 네비게이션 개선
+Breadcrumb 네비게이션:
+홈 > 버킷명 > folder1 > subfolder
+각 단계 클릭 시 해당 레벨로 이동
+URL 구조:
+/browser/bucket-name/ → 루트
+/browser/bucket-name/folder1/ → folder1 내부
+/browser/bucket-name/folder1/subfolder/ → 중첩 폴더
+🔧 핵심 기술적 접근법
+가상 폴더 방식
+S3는 실제 폴더가 없고 모든 것이 파일
+folder1/subfolder/file.txt라는 키로 폴더 구조 시뮬레이션
+Delimiter: '/'로 CommonPrefixes를 활용하여 폴더처럼 보이게 함
+빈 폴더 처리
+실제 파일이 없는 빈 폴더는 .placeholder 더미 파일로 표현
+실제 파일이 추가되면 .placeholder 삭제 가능
+효율적인 API 설계
+단일 파일: presigned URL 그대로 사용 (기존 방식 유지)
+복수 파일/폴더: 서버에서 ZIP 생성 후 다운로드
+업로드: presigned URL 방식 그대로 유지 (폴더는 경로만 유지)
+📊 사용자 경험 개선
+Before (현재)
+파일들만 길게 나열
+5개 파일 선택 → 5번 개별 다운로드
+폴더 개념 없음
+After (개선 후)
+폴더/파일 계층 구조
+5개 파일 선택 → 1개 ZIP 다운로드
+폴더 단위 업로드/다운로드 가능
+직관적인 네비게이션
+🎯 구현 우선순위
+다운로드 개선 → 사용자가 바로 체감할 수 있는 개선
+폴더 표시 → 기존 파일들을 폴더 구조로 정리
+폴더 생성 → 새로운 폴더 만들기
+폴더 업로드 → 대량 파일 구조 유지 업로드
+UI/UX 개선 → breadcrumb, 아이콘 등

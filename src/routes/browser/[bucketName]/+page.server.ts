@@ -19,7 +19,6 @@ export const load = async ({ params, parent }: { params: { bucketName: string },
             bucketName,
             timestamp: new Date().toISOString(),
             buckets: layoutData.buckets
-            // objects는 layoutData에서 이미 제공되므로 여기서 다시 반환할 필요 없음
         };
     } catch (err) {
         console.error(`버킷 ${bucketName} 데이터 처리 중 오류:`, err);
@@ -29,32 +28,46 @@ export const load = async ({ params, parent }: { params: { bucketName: string },
     }
 };
 
-// 서버 액션 정의 (객체 삭제 액션)
-export const actions: Actions = {
-    deleteObject: async ({ request, params }) => {
+// 서버 액션 정의 (개별 객체 삭제 액션)
+export const actions: Actions = {  
+    // 새로 추가: 일괄 삭제 액션
+    bulkDeleteObjects: async ({ request, params }) => {
         const { bucketName } = params;
         
         try {
             const formData = await request.formData();
-            const keyValue = formData.get('key');
+            const objectKeysStr = formData.get('objectKeys');
             
-            if (!keyValue) {
-                return fail(400, { success: false, message: '객체 키가 필요합니다' });
+            if (!objectKeysStr) {
+                return fail(400, { success: false, message: '삭제할 객체 키가 필요합니다' });
             }
             
-            // S3 클라이언트 생성 및 객체 삭제
-            const s3Client = createS3Client();
-            await s3Client.deleteObject({
-                Bucket: bucketName as string,  // 타입 단언으로 오류 해결
-                Key: keyValue.toString()
-            }).promise();
+            const objectKeys: string[] = JSON.parse(objectKeysStr.toString());
             
-            return { success: true };
+            if (objectKeys.length === 0) {
+                return fail(400, { success: false, message: '삭제할 객체가 없습니다' });
+            }
+            
+            // S3 클라이언트 생성 및 객체들 삭제
+            const s3Client = createS3Client();
+            
+            // 각 객체를 개별적으로 삭제 (기존 버킷 삭제에서와 동일한 방식)
+            for (const key of objectKeys) {
+                await s3Client.deleteObject({
+                    Bucket: bucketName as string,
+                    Key: key
+                }).promise();
+            }
+            
+            return { 
+                success: true, 
+                message: `${objectKeys.length}개의 객체가 삭제되었습니다` 
+            };
         } catch (err) {
-            console.error('객체 삭제 중 오류:', err);
+            console.error('일괄 삭제 중 오류:', err);
             return fail(500, { 
                 success: false, 
-                message: err instanceof Error ? err.message : '객체 삭제 중 오류가 발생했습니다' 
+                message: err instanceof Error ? err.message : '일괄 삭제 중 오류가 발생했습니다' 
             });
         }
     }
