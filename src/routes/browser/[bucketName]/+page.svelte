@@ -1,20 +1,17 @@
 <script lang="ts">
     import ObjectList from '$lib/components/bucket/ObjectList.svelte';
-    import { fileFilterStore } from '$lib/stores/filterStore.svelte';
+    import { fileFilter } from '$lib/stores/filterStore.svelte';
     import { goto } from '$app/navigation';
 
     let { data } = $props<{ data: any }>();
-
-    // 전역 필터 스토어에서 값 가져오기 - Runes 방식
-    let fileFilter = $derived(fileFilterStore.value);
     
     // 필터링은 이제 폴더/파일 통합 아이템에 적용 (폴더 + 파일 모두 검색)
     let filteredItems = $derived(() => {
         if (!data.directory) return data.objects || [];
         
-        if (!fileFilter) return data.directory.items;
+        if (!fileFilter.value) return data.directory.items;
         
-        const searchTerm = fileFilter.toLowerCase().trim();
+        const searchTerm = fileFilter.value.toLowerCase().trim();
         
         return data.directory.items.filter((item: any) => {
             if ('type' in item && item.type === 'folder') {
@@ -155,7 +152,7 @@
     </div>
     
     <!-- 객체 목록 컴포넌트 -->
-    {#if fileFilter && filteredItems().length === 0}
+    {#if fileFilter.value && filteredItems().length === 0}
         <div class="p-5 mt-20 bg-white rounded text-gray-600 text-center">검색 결과가 없습니다.</div>
     {:else}
         <ObjectList 

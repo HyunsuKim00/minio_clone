@@ -1,29 +1,9 @@
 import type AWS from 'aws-sdk';
 import type { ObjectInfo, FolderInfo, DirectoryItem } from './types';
 
-// 기존 함수 (하위 호환성 유지)
-export async function listObjects(s3Client: AWS.S3, bucketName: string, prefix?: string): Promise<ObjectInfo[]> {
-  try {  
-    const data = await s3Client.listObjectsV2(
-      {
-        Bucket: bucketName,
-        Prefix: prefix || ''
-      }
-    ).promise();
-    
-    return (data.Contents || []).map(item => ({
-      key: item.Key || '',
-      size: item.Size || 0,
-      lastModified: item.LastModified,
-      etag: item.ETag
-    }));
-  } catch (error) {
-    console.error(`Error listing objects in bucket ${bucketName}:`, error);
-    throw error;
-  }
-}
-
-// 새로운 함수: 폴더와 파일을 구분하여 조회
+// 폴더와 파일을 구분하여 조회
+// 전체 버킷 내 목록을 보여줄 때 사용
+// 특정 폴더 내 목록을 보여줄 때도 사용
 export async function listDirectory(s3Client: AWS.S3, bucketName: string, prefix: string = ''): Promise<DirectoryItem> {
   try {
     // Delimiter를 추가하여 폴더/파일 구분
@@ -76,6 +56,16 @@ export async function listDirectory(s3Client: AWS.S3, bucketName: string, prefix
     };
     
   } catch (error) {
+    // NoSuchBucket 에러는 정상적인 상황 (버킷이 삭제되었거나 존재하지 않음)
+    // 불필요한 에러 로그를 남기지 않고 에러를 그대로 던짐
+    if (error instanceof Error && 
+        (error.message.includes('NoSuchBucket') || 
+         error.message.includes('does not exist') ||
+         (error as any).code === 'NoSuchBucket')) {
+      throw error;
+    }
+    
+    // 실제 예상치 못한 에러만 로깅
     console.error(`Error listing directory in bucket ${bucketName}:`, error);
     throw error;
   }

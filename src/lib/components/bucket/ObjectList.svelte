@@ -3,7 +3,7 @@
   import type { ObjectInfo, FolderInfo, DirectoryItem } from '$lib/server/index';
   import { formatBytes } from '$lib/utils/formatters';
   import { goto } from '$app/navigation';
-  import { page } from '$app/stores';
+  import { getPresignedUrl } from '$lib/utils/presignedUrl';
   
   // Svelte 5 Runes 사용
   interface Props {
@@ -47,12 +47,13 @@
     }
   }
   
-  // 폴더 다운로드 핸들러
+  // 폴더 다운로드 핸들러 (개별 파일 다운로드 방식)
   async function handleFolderDownload(folder: FolderInfo, event: Event) {
     event.stopPropagation(); // 폴더 클릭 이벤트 방지
     
     try {      
-      const response = await fetch('/api/download-folder', {
+      // 폴더 내 파일 목록 조회
+      const response = await fetch('/api/list-folder-files', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json'
@@ -65,32 +66,72 @@
       
       if (!response.ok) {
         const errorText = await response.text();
-        throw new Error(`폴더 다운로드 실패: ${errorText}`);
+        throw new Error(`폴더 파일 목록 조회 실패: ${errorText}`);
       }
       
-      // 브라우저에서만 실행 (SSR 방지)
-      if (typeof window !== 'undefined') {
-        // ZIP 파일을 Blob으로 변환
-        const blob = await response.blob();
-        const blobUrl = window.URL.createObjectURL(blob);
-        
-        // 폴더명.zip 파일명 생성
-        const folderName = folder.name;
-        const zipFileName = `${folderName}.zip`;
-        
-        // 다운로드 링크 생성
-        const link = document.createElement('a');
-        link.href = blobUrl;
-        link.download = zipFileName;
-        link.style.display = 'none';
-        
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        
-        // 메모리 정리
-        window.URL.revokeObjectURL(blobUrl);
+      const folderData = await response.json();
+      const files = folderData.files as string[];
+      
+      if (files.length === 0) {
+        alert('다운로드할 파일이 없습니다.');
+        return;
       }
+      
+      // 각 파일을 개별적으로 다운로드
+      let downloadedCount = 0;
+      let failedCount = 0;
+      
+      for (const fileKey of files) {
+        try {
+          // presigned URL 생성
+          const url = await getPresignedUrl({
+            operation: 'download',
+            bucketName: bucketName!,
+            key: fileKey,
+            expiresIn: 3600 // 1시간
+          });
+          
+          // fetch로 파일 데이터 받아오기
+          const response = await fetch(url);
+          if (!response.ok) {
+            throw new Error(`${fileKey} 다운로드 실패: ${response.statusText}`);
+          }
+          
+          // blob으로 변환
+          const blob = await response.blob();
+          
+          // 파일명 추출
+          const filename = fileKey.split('/').pop() || fileKey;
+          
+          // blob을 이용한 다운로드 실행
+          if (typeof window !== 'undefined') {
+            const blobUrl = window.URL.createObjectURL(blob);
+            
+            const a = document.createElement('a');
+            a.href = blobUrl;
+            a.download = filename;
+            a.style.display = 'none';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            
+            // 메모리 정리
+            window.URL.revokeObjectURL(blobUrl);
+          }
+          
+          downloadedCount++;
+          
+          // 브라우저 다운로드 제한 방지를 위한 딜레이
+          if (downloadedCount < files.length) {
+            await new Promise(resolve => setTimeout(resolve, 200));
+          }
+          
+        } catch (err) {
+          console.error(`${fileKey} 다운로드 실패:`, err);
+          failedCount++;
+        }
+      }
+      
       
     } catch (err) {
       console.error('폴더 다운로드 중 오류:', err);

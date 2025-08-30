@@ -5,11 +5,11 @@ import type { Actions } from './$types';
 // /browser 경로로 직접 접근 시 첫 번째 버킷으로 리디렉션
 export const load = async ({ parent }: { parent: () => Promise<any> }) => {
   try {
+    // parent(): 이미 로드된 상위 데이터를 비동기적으로 가져오는 함수
     // 부모 레이아웃에서 버킷 목록 가져오기
     const layoutData = await parent();
     
     // 버킷이 있으면 첫 번째 버킷으로 리디렉션
-    // 레이아웃에서 이미 유효한 버킷만 필터링되었으므로 바로 리디렉션
     if (layoutData.buckets && layoutData.buckets.length > 0) {
       const firstBucket = layoutData.buckets[0];
       throw redirect(307, `/browser/${firstBucket.Name}`);
@@ -29,6 +29,7 @@ export const load = async ({ parent }: { parent: () => Promise<any> }) => {
 
 export const actions: Actions = {
   // 버킷 삭제 액션
+  // request: 폼 데이터를 담고 있는 HTTP request 객체. 클라이언트에서 서버로 전송된 객체
   deleteBucket: async ({ request }) => {
     const formData = await request.formData();
     const bucketName = formData.get('bucketName')?.toString();
@@ -48,10 +49,10 @@ export const actions: Actions = {
       const listObjectsResponse = await s3Client.listObjectsV2({ Bucket: bucketName }).promise();
       const objects = listObjectsResponse.Contents || [];
       
-      // 2. 모든 객체 개별적으로 삭제 (버킷이 비어있어야 삭제 가능)
+      // 2. 모든 객체 개별적으로 삭제 (객체가 하나라도 존재하는 경우)
       if (objects.length > 0) {
-        // deleteObjects에서 Content-MD5 오류가 발생하므로 개별 삭제로 대체
         for (const object of objects) {
+          // 오브젝트는 Key 값으로 삭제 요청
           if (object.Key) {
             await s3Client.deleteObject({
               Bucket: bucketName,
@@ -61,16 +62,17 @@ export const actions: Actions = {
         }
       }
       
-      // 3. 버킷 삭제
+      // 3. 버킷 삭제 (모든 객체 삭제 이후)
+      // 버킷은 Bucket 이름으로 삭제 요청
       await s3Client.deleteBucket({ Bucket: bucketName }).promise();
       
       console.log(`버킷 '${bucketName}' 삭제 완료`);
       
-      // S3 서비스의 일관성 지연을 위해 잠시 대기
-      await new Promise(resolve => setTimeout(resolve, 500));
-      
-      // 버킷 삭제 후 브라우저 페이지로 직접 리디렉션
-      throw redirect(303, '/browser');
+      // 리디렉션 대신 성공 응답 반환 (클라이언트에서 리디렉션 처리)
+      return {
+        success: true,
+        message: `버킷 '${bucketName}' 삭제 완료`
+      };
       
     } catch (error) {
       // 리디렉션 에러는 정상적인 처리이므로 다시 throw
@@ -120,8 +122,12 @@ export const actions: Actions = {
 
       console.log(`버킷 '${bucketName}' 생성 완료`);
       
-      // 생성된 버킷으로 바로 이동
-      throw redirect(303, `/browser/${bucketName}`);
+      // 리디렉션 대신 성공 응답 반환 (클라이언트에서 리디렉션 처리)
+      return {
+        success: true,
+        bucketName,
+        message: `버킷 '${bucketName}' 생성 완료`
+      };
       
     } catch (error) {
       // 리디렉션 에러는 정상적인 처리이므로 다시 throw
@@ -132,14 +138,26 @@ export const actions: Actions = {
       
       // AWS 오류 메시지 처리
       if (error instanceof Error) {
-        if (error.message.includes('BucketAlreadyExists')) {
+        // 디버깅을 위해 전체 오류 메시지 출력
+        console.log('Error object:', {
+          message: error.message,
+          code: (error as any).code,
+          name: error.name
+        });
+        
+        // 이미 존재하는 버킷 처리
+        if (error.message.includes('BucketAlreadyOwnedByYou') || 
+            (error as any).code === 'BucketAlreadyOwnedByYou') {
           return fail(400, { 
             error: true, 
             message: '이미 존재하는 버킷 이름입니다.',
             bucketName
           });
         }
-        if (error.message.includes('InvalidBucketName')) {
+        
+        // 유효하지 않은 버킷 이름 처리
+        if (error.message.includes('InvalidBucketName') || 
+            (error as any).code === 'InvalidBucketName') {
           return fail(400, { 
             error: true, 
             message: '유효하지 않은 버킷 이름입니다.',

@@ -1,20 +1,15 @@
 <script lang="ts">
-  import { goto } from '$app/navigation';
-  import RightSidebar from '$lib/components/object/rightSidebar.svelte';
   import ObjectList from '$lib/components/bucket/ObjectList.svelte';
-  import { fileFilterStore } from '$lib/stores/filterStore.svelte';
+  import { fileFilter } from '$lib/stores/filterStore.svelte';
   
   let { data } = $props();
-  
-  // 전역 필터 스토어에서 값 가져오기 - Runes 방식
-  let fileFilter = $derived(fileFilterStore.value);
   
   // 필터 값에 따라 객체 목록 필터링 (폴더 + 파일 모두 검색)
   let filteredItems = $derived(() => {
     const items = data.directory?.items || [];
-    if (!fileFilter) return items;
+    if (!fileFilter.value) return items;
     
-    const searchTerm = fileFilter.toLowerCase().trim();
+    const searchTerm = fileFilter.value.toLowerCase().trim();
     
     return items.filter(item => {
       if ('type' in item && item.type === 'folder') {
@@ -41,21 +36,10 @@
           document.dispatchEvent(event);
       }
   }
-  
-  // 사이드바 닫기 함수
-  function handleCloseSidebar() {
-    // 현재 파일이 속한 폴더로 돌아가기
-    const returnUrl = data.currentPrefix 
-      ? `/browser/${data.bucketName}?prefix=${encodeURIComponent(data.currentPrefix)}`
-      : `/browser/${data.bucketName}`;
-    goto(returnUrl);
-  }
 </script>
 
-<!-- 메인 레이아웃: 좌측 ObjectList + 우측 Sidebar -->
-<div class="flex-1 flex h-full">
-  <!-- 좌측: 객체 목록 -->
-  <div class="flex-1 p-5 overflow-auto">
+<!-- 객체 목록 페이지 -->
+<div class="p-5 overflow-auto h-full">
     <!-- 경로 바와 폴더 생성 버튼 (분리된 박스들) -->
     <div class="flex items-center gap-3 mb-4">
         <!-- 경로 박스 -->
@@ -67,7 +51,7 @@
                 <div class="flex items-center space-x-1 min-w-0">
                     <button 
                         class="text-blue-600 hover:text-blue-800 font-medium hover:underline"
-                        onclick={() => goto(`/browser/${data.bucketName}`)}
+                        onclick={() => window.location.href = `/browser/${data.bucketName}`}
                     >
                         {data.bucketName}
                     </button>
@@ -76,7 +60,7 @@
                             <span class="text-gray-400">/</span>
                             <button 
                                 class="text-blue-600 hover:text-blue-800 font-medium hover:underline truncate"
-                                onclick={() => goto(`/browser/${data.bucketName}?prefix=${encodeURIComponent(breadcrumb.prefix)}`)}
+                                onclick={() => window.location.href = `/browser/${data.bucketName}?prefix=${encodeURIComponent(breadcrumb.prefix)}`}
                             >
                                 {breadcrumb.name}
                             </button>
@@ -93,7 +77,7 @@
                 const createUrl = data.currentPrefix 
                   ? `/browser/${data.bucketName}?prefix=${encodeURIComponent(data.currentPrefix)}`
                   : `/browser/${data.bucketName}`;
-                goto(createUrl);
+                window.location.href = createUrl;
             }}
             class="inline-flex items-center h-11 px-3 py-2 border border-gray-600 text-sm rounded-md text-gray-700 bg-white hover:bg-gray-100 hover:border-gray-700 focus:outline-none focus:ring-2 focus:ring-gray-500 transition-colors duration-200 flex-shrink-0"
             title="새 폴더 생성"
@@ -105,7 +89,7 @@
         </button>
     </div>
     
-    {#if fileFilter && filteredItems().length === 0}
+    {#if fileFilter.value && filteredItems().length === 0}
       <div class="p-5 mt-20 bg-white rounded text-gray-600 text-center">검색 결과가 없습니다.</div>
     {:else}
       <ObjectList 
@@ -115,15 +99,4 @@
         onSelectionChange={handleSelectionChange}
       />
     {/if}
-  </div>
-  
-  <!-- 우측: 사이드바 -->
-  <div class="w-96 border-l border-gray-200">
-    <RightSidebar 
-      object={data.selectedObject}
-      bucketName={data.bucketName}
-      metadata={data.metadata}
-      onClose={handleCloseSidebar}
-    />
-  </div>
 </div>

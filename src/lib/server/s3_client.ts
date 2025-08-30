@@ -1,5 +1,5 @@
 import AWS from 'aws-sdk';
-import { VITE_S3_ENDPOINT, VITE_S3_ACCESS_KEY, VITE_S3_SECRET_KEY, VITE_S3_REGION } from '$env/static/private';
+import { S3_ENDPOINT, S3_ACCESS_KEY, S3_SECRET_KEY, S3_REGION } from '$env/static/private';
 
 // 환경 변수에서 직접 설정 가져오기
 export function createS3Client(): AWS.S3 {
@@ -11,10 +11,10 @@ export function createS3Client(): AWS.S3 {
     });
 
     return new AWS.S3({
-        endpoint: VITE_S3_ENDPOINT,
-        accessKeyId: VITE_S3_ACCESS_KEY,
-        secretAccessKey: VITE_S3_SECRET_KEY,
-        region: VITE_S3_REGION,
+        endpoint: S3_ENDPOINT,
+        accessKeyId: S3_ACCESS_KEY,
+        secretAccessKey: S3_SECRET_KEY,
+        region: S3_REGION,
         s3ForcePathStyle: true, // MinIO에는 항상 true로 설정
         signatureVersion: 'v4',
         sslEnabled: false, // SSL 비활성화

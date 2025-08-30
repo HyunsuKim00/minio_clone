@@ -40,9 +40,9 @@ export async function getPresignedUrl(options: PresignedUrlOptions): Promise<str
       expiresIn
     };
 
-    // 업로드 작업인 경우에만 contentType 추가
-    if (operation === 'upload' && contentType) {
-      requestBody.contentType = contentType;
+    // 업로드 작업인 경우 contentType 추가 (없으면 기본값 사용)
+    if (operation === 'upload') {
+      requestBody.contentType = contentType || 'application/octet-stream';
     }
 
     const response = await fetch('/api/presigned', {

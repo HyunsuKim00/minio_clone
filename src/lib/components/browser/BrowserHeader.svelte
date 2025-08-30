@@ -1,18 +1,13 @@
 <script lang="ts">
-  import { fileFilterStore } from '$lib/stores/filterStore.svelte';
+  import { fileFilter } from '$lib/stores/filterStore.svelte';
   
   let { onFilterChange = () => {} } = $props();
-  let filterValue = $state('');
   
-  // 필터 값이 변경되면 전역 스토어에 저장하고 콜백도 호출
+  // 필터 값이 변경되면 전역 상태에 저장하고 콜백도 호출
   function handleFilterChange(e: Event) {
     const target = e.target as HTMLInputElement;
-    filterValue = target.value;
-    
-    // 전역 스토어에 값 저장 (Runes 방식)
-    fileFilterStore.value = filterValue;
-    
-    onFilterChange(filterValue);
+    fileFilter.set(target.value);
+    onFilterChange(target.value);
   }
 </script>
 
@@ -37,7 +32,7 @@
           <input 
             type="text" 
             placeholder="버킷 내 오브젝트 검색..." 
-            bind:value={filterValue}
+            bind:value={fileFilter.value}
             oninput={handleFilterChange}
             class="pl-10 pr-3 py-2 border border-gray-300 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-primary-500 w-full"
           />

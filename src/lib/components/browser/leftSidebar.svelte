@@ -236,11 +236,18 @@
 
 <!-- 버킷 생성 모달 -->
 {#if showModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div 
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    onclick={handleModalClick}>
+    role="button"
+    tabindex="-1"
+    onclick={handleModalClick}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleModalClick(e as any);
+      }
+    }}>
     <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
       <!-- 모달 헤더 -->
       <div class="flex items-center justify-between mb-4">
@@ -267,11 +274,25 @@
             isSubmitting = false;
             
             if (result.type === 'failure') {
+              // 디버깅용 로그 추가
+              console.log('Failure result:', result.data);
               errorMessage = (result.data as any)?.message || '버킷 생성 중 오류가 발생했습니다.';
+            } else if (result.type === 'success') {
+              // 성공 응답에서 버킷 이름을 가져와 해당 버킷으로 리디렉션
+              const bucketName = (result.data as any)?.bucketName;
+              if (bucketName) {
+                // 모달 닫기
+                closeModal();
+                // 생성된 버킷으로 직접 이동
+                window.location.href = `/browser/${bucketName}`;
+              } else {
+                // 버킷 이름이 없는 경우 데이터만 무효화하고 모달 닫기
+                await invalidateAll();
+                closeModal();
+              }
             } else if (result.type === 'redirect') {
-              // 모든 서버사이드 데이터 무효화 (새로고침 효과)
-              await invalidateAll();
-              closeModal();
+              // 기존 리디렉션 처리도 유지 (다른 액션에서 사용될 수 있음)
+              window.location.href = result.location;
             }
           };
         }}
@@ -347,11 +368,18 @@
 
 <!-- 버킷 삭제 모달 -->
 {#if showDeleteModal}
-  <!-- svelte-ignore a11y-click-events-have-key-events -->
-  <!-- svelte-ignore a11y-no-static-element-interactions -->
+  <!-- svelte-ignore a11y_click_events_have_key_events -->
+  <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div 
     class="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50"
-    onclick={handleModalClick}>
+    role="button"
+    tabindex="-1"
+    onclick={handleModalClick}
+    onkeydown={(e) => {
+      if (e.key === 'Enter' || e.key === ' ') {
+        handleModalClick(e as any);
+      }
+    }}>
     <div class="bg-white rounded-lg shadow-xl p-6 w-96 max-w-full mx-4">
       <!-- 모달 헤더 -->
       <div class="flex items-center justify-between mb-4">
@@ -402,9 +430,14 @@
               
               if (result.type === 'failure') {
                 errorMessage = (result.data as any)?.message || '버킷 삭제 중 오류가 발생했습니다.';
-              } else if (result.type === 'redirect') {
-                await invalidateAll();
+              } else if (result.type === 'success') {
+                // 성공 응답 처리
                 closeModal();
+                // 브라우저 페이지로 이동
+                window.location.href = '/browser';
+              } else if (result.type === 'redirect') {
+                // 기존 리디렉션 처리도 유지
+                window.location.href = result.location;
               }
             };
           }}

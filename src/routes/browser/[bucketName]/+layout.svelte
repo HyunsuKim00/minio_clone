@@ -1,6 +1,7 @@
 <script lang="ts">
   import BucketHeader from '$lib/components/bucket/BucketHeader.svelte';
   import { getPresignedUrl } from '$lib/utils/presignedUrl';
+  import { download } from '$lib/utils/download';
   import { onMount } from 'svelte';
   
   // SvelteKit 런타임 속성
@@ -10,9 +11,7 @@
   let fileInput: HTMLInputElement | null = null;
   let folderInput: HTMLInputElement | null = null; // 폴더 업로드용
   let uploading = false;
-  
 
-  
   // 새로 추가: 선택된 객체 관리
   let selectedObjects = $state<string[]>([]);
   let bulkDeleting = $state(false);
@@ -22,15 +21,15 @@
   const createdDateStr = typeof data.createdDate === 'string' ? data.createdDate : 
                          data.createdDate instanceof Date ? data.createdDate.toISOString() : '';
   
-  // 이벤트 핸들러 함수들
+  // 페이지 새로고침 핸들러
   function handleRefresh() {
     if (typeof window !== 'undefined') {
       window.location.reload();
     }
   }
   
+  // 파일 선택 창 띄우기
   function handleUpload() {
-    // 파일 선택 창 직접 열기
     if (fileInput) {
       fileInput.click();
     }
@@ -38,11 +37,19 @@
   
   // 폴더 업로드 (webkitdirectory)
   function handleUploadFolder() {
+    // 브라우저 호환성 체크
+    if (!('webkitdirectory' in document.createElement('input'))) {
+      alert('이 브라우저는 폴더 업로드를 지원하지 않습니다.\n\n최신 버전의 Chrome, Firefox, Safari, Edge를 사용해주세요.');
+      return;
+    }
+    
     if (folderInput) {
+      console.log('폴더 선택 다이얼로그 열기');
       folderInput.click();
     }
   }
   
+  // 선택한 파일들을 MinIO 서버에 업로드
   async function handleFileSelect(e: Event) {
     const target = e.target as HTMLInputElement;
     const files = target.files;
@@ -71,7 +78,7 @@
         const response = await fetch(url, {
           method: 'PUT',
           headers: {
-            'Content-Type': file.type
+            'Content-Type': file.type || 'application/octet-stream'
           },
           body: file
         });
@@ -107,11 +114,16 @@
     const target = e.target as HTMLInputElement;
     const files = target.files;
     
-    if (!files || files.length === 0) return;
+    console.log('폴더 업로드 시작:', { filesCount: files?.length || 0 });
+    
+    if (!files || files.length === 0) {
+      console.warn('선택된 파일이 없습니다');
+      return;
+    }
     
     try {
       uploading = true;      
-      // 모든 파일 업로드 진행 (폴더 구조 유지)
+      
       const uploadPromises = Array.from(files).map(async (file) => {
         // webkitRelativePath를 사용하여 폴더 구조 유지
         const relativePath = (file as any).webkitRelativePath || file.name;
@@ -130,14 +142,17 @@
         const response = await fetch(url, {
           method: 'PUT',
           headers: {
-            'Content-Type': file.type
+            'Content-Type': file.type || 'application/octet-stream'
           },
           body: file
         });
         
         if (!response.ok) {
+          console.error(`${key} 업로드 실패:`, response.status, response.statusText);
           throw new Error(`${key} 업로드 실패: ${response.statusText}`);
         }
+        
+        console.log(`${key} 업로드 완료`);
       });
       
       // 모든 업로드가 완료될 때까지 대기
@@ -159,11 +174,6 @@
     } finally {
       uploading = false;
     }
-  }
-  
-  // 선택 변경 핸들러
-  function handleSelectionChange(selected: string[]) {
-    selectedObjects = selected;
   }
   
   // 일괄 다운로드 핸들러 (파일 + 폴더 지원)
@@ -191,87 +201,63 @@
       // 단일 파일이고 폴더가 없는 경우만 기존 방식 사용
       if (fileKeys.length === 1 && folderPrefixes.length === 0) {
         const objectKey = fileKeys[0];
-        const url = await getPresignedUrl({
-          operation: 'download',
-          bucketName: data.bucketName,
-          key: objectKey,
-          expiresIn: 300
-        });
-        
-        const response = await fetch(url);
-        if (!response.ok) {
-          throw new Error(`${objectKey} 다운로드 실패: ${response.statusText}`);
-        }
-        
-        const blob = await response.blob();
-        
-        // 브라우저에서만 실행 (SSR 방지)
-        if (typeof window !== 'undefined') {
-          const blobUrl = window.URL.createObjectURL(blob);
-          
-          // 파일 이름 추출
-          const fileName = objectKey.split('/').pop() || objectKey;
-          
-          // 다운로드 링크 생성
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = fileName;
-          link.style.display = 'none';
-          
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // 메모리 정리
-          window.URL.revokeObjectURL(blobUrl);
-        }
+        await download(data.bucketName, objectKey);
       } else {
-        // 복수 항목이거나 폴더가 포함된 경우 혼합 다운로드 API 사용
-        const response = await fetch('/api/download-mixed', {
-          method: 'POST',
-          headers: {
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify({
-            bucketName: data.bucketName,
-            fileKeys,
-            folderPrefixes
-          })
-        });
+        // 복수 항목이거나 폴더가 포함된 경우 개별 다운로드 방식 사용
         
-        if (!response.ok) {
-          const errorText = await response.text();
-          throw new Error(`다운로드 실패: ${errorText}`);
+        // 모든 다운로드할 파일들을 수집
+        const allFilesToDownload: string[] = [...fileKeys];
+        
+        // 폴더들의 파일 목록 조회
+        for (const folderPrefix of folderPrefixes) {
+          try {
+            const response = await fetch('/api/list-folder-files', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({
+                bucketName: data.bucketName,
+                folderPrefix
+              })
+            });
+            
+            if (response.ok) {
+              const folderData = await response.json();
+              allFilesToDownload.push(...folderData.files);
+            }
+          } catch (err) {
+            console.warn(`폴더 ${folderPrefix} 파일 목록 조회 실패:`, err);
+          }
         }
         
-        // ZIP 파일을 Blob으로 변환
-        const blob = await response.blob();
+        if (allFilesToDownload.length === 0) {
+          alert('다운로드할 파일이 없습니다.');
+          return;
+        }
         
-        // 브라우저에서만 실행 (SSR 방지)
-        if (typeof window !== 'undefined') {
-          const blobUrl = window.URL.createObjectURL(blob);
-          
-          // ZIP 파일명 생성 (버킷명-날짜.zip)
-          const today = new Date().toISOString().split('T')[0];
-          const zipFileName = `${data.bucketName}-${today}.zip`;
-          
-          // 다운로드 링크 생성
-          const link = document.createElement('a');
-          link.href = blobUrl;
-          link.download = zipFileName;
-          link.style.display = 'none';
-          
-          document.body.appendChild(link);
-          link.click();
-          document.body.removeChild(link);
-          
-          // 메모리 정리
-          window.URL.revokeObjectURL(blobUrl);
+        // 각 파일을 개별적으로 다운로드 (blob 방식)
+        let downloadedCount = 0;
+        let failedCount = 0;
+        
+        for (const fileKey of allFilesToDownload) {
+          try {
+            await download(data.bucketName, fileKey);
+            
+            downloadedCount++;
+            
+            // 브라우저 다운로드 제한 방지를 위한 딜레이 (200ms)
+            if (downloadedCount < allFilesToDownload.length) {
+              await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
+          } catch (err) {
+            console.error(`${fileKey} 다운로드 실패:`, err);
+            failedCount++;
+          }
         }
       }
       
-      // 다운로드 완료 후 선택 해제
-      selectedObjects = [];
+      // // 다운로드 완료 후 선택 해제
+      // selectedObjects = [];
     } catch (err) {
       console.error('일괄 다운로드 중 오류:', err);
       alert(err instanceof Error ? err.message : '일괄 다운로드 중 오류가 발생했습니다.');

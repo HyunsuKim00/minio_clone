@@ -17,10 +17,10 @@ export async function POST({ request }: RequestEvent) {
       throw error(400, '지원되지 않는 작업입니다. upload 또는 download만 가능합니다');
     }
     
-    // 업로드 작업은 contentType 필요
-    if (operation === 'upload' && !contentType) {
-      throw error(400, '업로드에는 contentType이 필요합니다');
-    }
+    // 업로드 작업에서 contentType이 없으면 기본값 사용
+    const finalContentType = operation === 'upload' 
+      ? (contentType || 'application/octet-stream') 
+      : contentType;
     
     const s3Client = createS3Client();
     
@@ -29,7 +29,7 @@ export async function POST({ request }: RequestEvent) {
       Bucket: bucketName,
       Key: key,
       Expires: expiresIn,
-      ...(operation === 'upload' ? { ContentType: contentType } : {})
+      ...(operation === 'upload' ? { ContentType: finalContentType } : {})
     };
     
     // S3 SDK를 사용하여 직접 presigned URL 생성

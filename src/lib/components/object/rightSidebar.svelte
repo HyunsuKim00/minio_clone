@@ -1,8 +1,9 @@
 <script lang="ts">
   import type { ObjectInfo } from '$lib/server/index';
-  import { getPresignedUrl } from '$lib/utils/presignedUrl';
+  import { download } from '$lib/utils/download';
   import { invalidateAll } from '$app/navigation';
   import { formatBytes } from '$lib/utils/formatters';
+
   
   interface Props {
     object: ObjectInfo;
@@ -64,50 +65,7 @@
   
   // 다운로드 처리
   async function handleDownload() {
-    if (downloading) return;
-    
-    try {
-      downloading = true;
-      
-      // presigned URL 요청
-      const url = await getPresignedUrl({
-        operation: 'download',
-        bucketName,
-        key: object.key,
-        expiresIn: 300
-      });
-      
-      // 파일 다운로드
-      const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`다운로드 실패: ${response.statusText}`);
-      }
-      
-      const blob = await response.blob();
-      const blobUrl = window.URL.createObjectURL(blob);
-      
-      // 파일 이름 추출
-      const fileName = object.key.split('/').pop() || object.key;
-      
-      // 다운로드 링크 생성
-      const link = document.createElement('a');
-      link.href = blobUrl;
-      link.download = fileName;
-      link.style.display = 'none';
-      
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      
-      // 메모리 정리
-      window.URL.revokeObjectURL(blobUrl);
-      
-    } catch (err) {
-      console.error('다운로드 중 오류:', err);
-      alert(err instanceof Error ? err.message : '다운로드 중 오류가 발생했습니다.');
-    } finally {
-      downloading = false;
-    }
+    await download(bucketName, object.key);
   }
 
   // 삭제 처리

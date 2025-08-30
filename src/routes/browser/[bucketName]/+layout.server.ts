@@ -17,7 +17,7 @@ export const load: LayoutServerLoad = async ({ params, parent, url }) => {
   const layoutData = await parent();
   
   try {
-    // 새로운 listDirectory 함수 사용 (폴더/파일 구분)
+    // 버킷 내 모든 폴더/파일 목록 조회
     const s3Client = createS3Client();
     const directoryData = await listDirectory(s3Client, bucketName, prefix);
     
@@ -43,12 +43,16 @@ export const load: LayoutServerLoad = async ({ params, parent, url }) => {
       currentPrefix: prefix
     };
   } catch (err) {
-    console.error(`버킷 ${bucketName}의 디렉토리 조회 중 오류:`, err);
-    
-    // 버킷이 존재하지 않으면 browser 페이지로 리디렉션
-    if (err instanceof Error && (err.message.includes('NoSuchBucket') || err.message.includes('does not exist'))) {
+    // 버킷이 존재하지 않는 경우 (정상적인 상황이므로 에러 로그 없이 리다이렉트)
+    if (err instanceof Error && 
+        (err.message.includes('NoSuchBucket') || 
+         err.message.includes('does not exist') ||
+         (err as any).code === 'NoSuchBucket')) {
       throw redirect(303, '/browser');
     }
+    
+    // 실제 예상치 못한 에러만 로깅
+    console.error(`버킷 ${bucketName}의 디렉토리 조회 중 예상치 못한 오류:`, err);
     
     throw error(500, {
       message: err instanceof Error ? err.message : '디렉토리 목록을 불러오는 중 오류가 발생했습니다'
