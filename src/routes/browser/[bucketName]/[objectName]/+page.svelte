@@ -1,6 +1,7 @@
 <script lang="ts">
   import ObjectList from '$lib/components/bucket/ObjectList.svelte';
   import { fileFilter } from '$lib/stores/filterStore.svelte';
+  import type { ObjectInfo, FolderInfo } from '$lib/server/types';
   
   let { data } = $props();
   
@@ -11,7 +12,7 @@
     
     const searchTerm = fileFilter.value.toLowerCase().trim();
     
-    return items.filter(item => {
+    return items.filter((item: ObjectInfo | FolderInfo) => {
       if ('type' in item && item.type === 'folder') {
         // 폴더인 경우: name 속성 검색
         return item.name.toLowerCase().includes(searchTerm);

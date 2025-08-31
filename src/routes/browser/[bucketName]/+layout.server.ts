@@ -21,12 +21,13 @@ export const load: LayoutServerLoad = async ({ params, parent, url }) => {
     const s3Client = createS3Client();
     const directoryData = await listDirectory(s3Client, bucketName, prefix);
     
-    // 버킷 생성일 (실제로는 S3 API에서 제공하지 않을 수 있음)
+    // 버킷 생성일
     const bucketInfo = layoutData.buckets?.find(bucket => bucket.Name === bucketName);
     const createdDate = bucketInfo?.CreationDate || new Date().toISOString();
     
     // 총 용량 계산 (파일만)
     const files = directoryData.items.filter(item => 'size' in item);
+    // reduce: 리스트 내부 요소들의 합을 구할 때 사용
     const totalSize = files.reduce((sum, file) => sum + ('size' in file ? file.size : 0), 0);
     
     return {

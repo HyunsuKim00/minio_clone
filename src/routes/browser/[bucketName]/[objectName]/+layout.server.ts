@@ -1,9 +1,13 @@
 import { error, redirect } from '@sveltejs/kit';
 import { createS3Client } from '$lib/server/s3_client';
 import { listDirectory } from '$lib/server/listObjects';
-import type { LayoutServerLoad } from './$types';
+import type { ObjectInfo } from '$lib/server/types';
 
-export const load: LayoutServerLoad = async ({ params }) => {
+// 파일 상세 페이지 로드
+// 파일이 선택되었을 때, 파일이 속한 버킷 리스트에 해당 파일이 존재하는지 확인
+// 존재하면 그 파일 경로로 이동하고 상세 데이터를 보여줌.
+// 존재하지 않으면 버킷 경로로 이동
+export const load = async ({ params }: { params: { bucketName: string; objectName: string } }) => {
   const { bucketName, objectName } = params;
   
   if (!bucketName || !objectName) {
@@ -14,6 +18,7 @@ export const load: LayoutServerLoad = async ({ params }) => {
   const decodedObjectName = decodeURIComponent(objectName);
   
   // 파일 경로에서 현재 파일이 속한 폴더의 prefix 계산
+  // 예: "folder/subfolder/file.txt" → "folder/subfolder/"
   const lastSlashIndex = decodedObjectName.lastIndexOf('/');
   const currentPrefix = lastSlashIndex >= 0 ? decodedObjectName.substring(0, lastSlashIndex + 1) : '';
   
@@ -26,10 +31,12 @@ export const load: LayoutServerLoad = async ({ params }) => {
   // 요청된 오브젝트가 실제로 존재하는지 확인 (파일만)
   const selectedObject = directoryData.items.find(item => 
     'key' in item && item.key === decodedObjectName
-  ) as import('$lib/server/types').ObjectInfo | undefined;
+  ) as ObjectInfo | undefined;
   
+  // 요청된 오브젝트가 실제로 존재하는지 확인
+  // 존재하면 그 폴더로 이동
+  // 존재하지 않으면 버킷 루트로 리디렉션
   if (!selectedObject) {
-    // 에러 대신 현재 폴더로 리디렉션
     const redirectUrl = currentPrefix 
       ? `/browser/${bucketName}?prefix=${encodeURIComponent(currentPrefix)}`
       : `/browser/${bucketName}`;
